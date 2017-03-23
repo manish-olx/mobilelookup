@@ -1,7 +1,6 @@
 var config = require('../src/bin/config');
 var elastic = require('../elasticsearch');
 var fs = require('fs');
-var utf8 = require('utf8');
 
 module.exports = function(app) {
     app.get('/', function(req, res, next) {
@@ -150,7 +149,6 @@ module.exports = function(app) {
         for(var iterator=0;iterator<100;) {
             console.log("Processing data for offset:: "+ iterator);
             elastic.getAllData(iterator).then(function (result) {
-                //res.json(result);
             });
             iterator=iterator+config.data_chunk_limit;
             console.log("Processed data for offset:: "+ iterator);
@@ -182,15 +180,22 @@ module.exports = function(app) {
                         }
                     });
                 });
+                res.json({
+                    "data":{
+                        "status":"200",
+                        "title":"Data migrated successfully"
+                    },
+                    "error": {}
+                })
+            } else {
+                res.json({
+                    "data":{},
+                    "error": {
+                        "status":"200",
+                        "title":"Document already exists"
+                    }
+                })
             }
-
-            res.json({
-                "data":{
-                    "status":"200",
-                    "title":"Data migrated successfully"
-                },
-                "error": {}
-            })
         });
     });
 };
