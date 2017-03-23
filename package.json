@@ -10,8 +10,7 @@
   "dependencies": {
     "restify": "^4.3.0",
     "elasticsearch": "^9.0.2",
-    "body-parser": "~1.13.2",
-    "utf8": "*"
+    "body-parser": "~1.13.2"
   },
   "keywords": [],
   "author": "",

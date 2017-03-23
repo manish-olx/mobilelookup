@@ -38,7 +38,7 @@ module.exports = function(app) {
     });
 
     /** Create Mapping */
-    app.get('/mobiles/initmapping', function(req, res, next) {
+    app.post('/mobiles/initmapping', function(req, res, next) {
         elastic.initMapping().then(function (result) {
             res.json({
                 "data":result,
@@ -88,9 +88,8 @@ module.exports = function(app) {
     /** POST document to be indexed */
     app.post('/mobiles/setdata', function(req, res, next) {
 
-        if(typeof req.body.model != 'undefined' &&
-            ((typeof req.body.model.name!= 'undefined' && req.body.model.name.trim()!='')
-            || (typeof req.body.model.number!= 'undefined' && req.body.model.name.trim()!=''))
+        if(typeof req.body.model != 'undefined' && typeof req.body.model.number!= 'undefined'
+            && req.body.model.number.trim()!=''
         ) {
             elastic.addDocument(req.body).then(function (result) {
                 if(result.created==true)

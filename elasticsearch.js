@@ -1,4 +1,5 @@
 var elasticsearch = require('elasticsearch');
+var utills = require(__dirname+'/utills');
 
 var elasticClient = new elasticsearch.Client({
     host: 'localhost:9200',
@@ -77,6 +78,8 @@ function initMapping() {
                     external: { type: "string" }
                 },
                 dual_sim: { type: "string" },
+                created_at: { type: "string" },
+                modified_at: { type: "string" },
                 suggest: {
                     type: "completion",
                     analyzer: "standard",
@@ -92,6 +95,9 @@ function initMapping() {
 exports.initMapping = initMapping;
 
 function addDocument(document) {
+    var datetime = new Date();
+    var currentDate = utills.convertDate(datetime);
+
     return elasticClient.index({
         index: indexName,
         type: "mobile",
@@ -104,6 +110,8 @@ function addDocument(document) {
             os: document.os,
             storage: document.storage,
             dual_sim: document.dual_sim,
+            created_at: currentDate,
+            modified_at: currentDate,
             suggest: {
                 input: [document.model.number, document.model.name],
                 output: document.model.name,
