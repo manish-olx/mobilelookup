@@ -78,6 +78,16 @@ function initMapping() {
                     external: { type: "string" }
                 },
                 dual_sim: { type: "string" },
+                device: { type: "string" },
+                camera: {
+                    type: "nested",
+                    primary:{
+                        type: "string"
+                    },
+                    front:{
+                        type: "string"
+                    }
+                },
                 created_at: { type: "string" },
                 modified_at: { type: "string" },
                 suggest: {
@@ -110,6 +120,8 @@ function addDocument(document) {
             os: document.os,
             storage: document.storage,
             dual_sim: document.dual_sim,
+            device: document.device,
+            camera: document.camera,
             created_at: currentDate,
             modified_at: currentDate,
             suggest: {
@@ -180,7 +192,7 @@ exports.getAllData = getAllData;
 function initModelMapping() {
     return elasticClient.indices.putMapping({
         index: indexName,
-        type: "mapping_mobile",
+        type: "mapping_android",
         body: {
             properties: {
                 manufacturer: { type: "string", analyzer: "standard" },
@@ -196,7 +208,7 @@ exports.initModelMapping = initModelMapping;
 function isModelMappingExists() {
     return elasticClient.indices.existsType({
         index: indexName,
-        type: "mapping_mobile"
+        type: "mapping_android"
     });
 }
 exports.isModelMappingExists = isModelMappingExists;
@@ -205,7 +217,7 @@ exports.isModelMappingExists = isModelMappingExists;
 function addModelMappingDocument(document) {
     return elasticClient.index({
         index: indexName,
-        type: "mapping_mobile",
+        type: "mapping_android",
         body: {
             manufacturer: document.manufacturer,
             model_name: document.model_name,
