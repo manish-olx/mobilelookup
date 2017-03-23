@@ -1,0 +1,19 @@
+{
+  "name": "mobilelookup",
+  "version": "1.0.0",
+  "description": "",
+  "main": "",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "start": "node ./src/bin/www"
+  },
+  "dependencies": {
+    "restify": "^4.3.0",
+    "elasticsearch": "^9.0.2",
+    "body-parser": "~1.13.2",
+    "utf8": "*"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC"
+}
