@@ -1,5 +1,6 @@
 var elasticsearch = require('elasticsearch');
 var utills = require(__dirname+'/utills');
+var config = require(__dirname+'/src/bin/config');
 
 var elasticClient = new elasticsearch.Client({
     host: 'localhost:9200',
@@ -49,11 +50,11 @@ function initMapping() {
                     type: "nested",
                     name: {
                         type: "string",
-                        analyzer: "standard"
+                        analyzer: "whitespace"
                     },
                     number: {
                         type: "string",
-                        analyzer: "standard"
+                        analyzer: "whitespace"
                     }
                 },
                 display: {
@@ -88,11 +89,11 @@ function initMapping() {
                         type: "string"
                     }
                 },
-                created_at: { type: "string" },
-                modified_at: { type: "string" },
+                created_at: { type: "date", format: "yyyy-MM-dd HH:mm:ss" },
+                modified_at: { type: "date", format: "yyyy-MM-dd HH:mm:ss" },
                 suggest: {
                     type: "completion",
-                    analyzer: "standard",
+                    analyzer: "simple",
                     search_analyzer: "simple",
                     max_input_length: 20,
                     preserve_separators: true,
@@ -137,7 +138,7 @@ exports.addDocument = addDocument;
 function getData(input) {
     return elasticClient.search({
         index: indexName,
-        type: "mobile",
+        type: "mobile_final",
         body: {
             query: {
                 "nested" : {
@@ -161,7 +162,7 @@ exports.getData = getData;
 function getSuggestions(input) {
     return elasticClient.suggest({
         index: indexName,
-        type: "mobile",
+        type: "mobile_final",
         body: {
             suggestions: {
                 text: input,
@@ -175,19 +176,37 @@ function getSuggestions(input) {
 }
 exports.getSuggestions = getSuggestions;
 
-function getAllData(input) {
+function getRawData(offset) {
+
+    /*var yesterday = new Date();
+    yesterday.setDate(yesterday.getDate() - 1);
+
+    yesterdayDate = utills.convertDate(yesterday);
+    console.log("aaaaaa:: "+ yesterdayDate);*/
     return elasticClient.search({
         index: indexName,
         type: "mobile",
         body: {
-            "from" : input, "size" : 20,
+            "size" : config.data_process_chunk_limit,
             query: {
-                "match_all": {}
+                "filtered": {
+                    "query": {
+                        "match_all": {}
+                    },
+                    "filter": {
+                        "range" : {
+                            "created_at" : {
+                                "gte" : "2017-04-04 00:00:00",
+                                "lte":"2017-04-04 23:59:59"
+                            }
+                        }
+                    }
+                }
             }
         }
-    })
+    });
 }
-exports.getAllData = getAllData;
+exports.getRawData = getRawData;
 
 function initModelMapping() {
     return elasticClient.indices.putMapping({
@@ -244,3 +263,184 @@ function insertCsvData(csvData) {
     return 1;
 }
 exports.insertCsvData = insertCsvData;
+
+function isFinalMobileDocumentExists() {
+    return elasticClient.indices.existsType({
+        index: indexName,
+        type: "mobile_final"
+    });
+}
+exports.isFinalMobileDocumentExists = isFinalMobileDocumentExists;
+
+function initFinalMobileDocument() {
+    return elasticClient.indices.putMapping({
+        index: indexName,
+        type: "mobile_final",
+        body: {
+            properties: {
+                brand: { type: "string" },
+                model: {
+                    type: "nested",
+                    name: {
+                        type: "string",
+                        analyzer: "whitespace"
+                    },
+                    number: {
+                        type: "string",
+                        analyzer: "whitespace"
+                    }
+                },
+                display: {
+                    type: "nested",
+                    width: { type: "string" },
+                    height: { type: "string" },
+                    size: { type: "string" }
+                },
+                ram: { type: "string" },
+                cpu: {
+                    type: "nested",
+                    chipset: { type: "string" }
+                },
+                os: {
+                    type: "nested",
+                    version: { type: "string" },
+                    is_rooted: { type: "string" }
+                },
+                storage: {
+                    type: "nested",
+                    internal: { type: "string" },
+                    external: { type: "string" }
+                },
+                dual_sim: { type: "string" },
+                device: { type: "string" },
+                camera: {
+                    type: "nested",
+                    primary:{
+                        type: "string"
+                    },
+                    front:{
+                        type: "string"
+                    }
+                },
+                created_at: { type: "date", format: "yyyy-MM-dd HH:mm:ss" },
+                modified_at: { type: "date", format: "yyyy-MM-dd HH:mm:ss" },
+                suggest: {
+                    type: "completion",
+                    analyzer: "simple",
+                    search_analyzer: "simple",
+                    max_input_length: 20,
+                    preserve_separators: true,
+                    payloads: true
+                }
+            }
+        }
+    });
+}
+exports.initFinalMobileDocument = initFinalMobileDocument;
+
+function isModelExistsInFinalDb(document) {
+    return elasticClient.search({
+        index: indexName,
+        type: "mobile_final",
+        body: {
+            query: {
+                "bool" :{
+                    "must" : [
+                        { "match": {"brand": document.brand} },
+                        { "match": {"device": document.device} },
+                        {
+                            "nested" : {
+                                "path" : "model",
+                                "query" : {
+                                    "bool" : {
+                                        "must" : {
+                                            "match" : {"number" : document.model.number}
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    ]
+                }
+            }
+        }
+    });
+}
+exports.isModelExistsInFinalDb = isModelExistsInFinalDb;
+
+function addDocumentToFinalDb(document) {
+    var datetime = new Date();
+    var currentDate = utills.convertDate(datetime);
+
+    return elasticClient.index({
+        index: indexName,
+        type: "mobile_final",
+        body: {
+            brand: document.brand,
+            model: document.model,
+            display: document.display,
+            ram: document.ram,
+            cpu: document.cpu,
+            os: document.os,
+            storage: document.storage,
+            dual_sim: document.dual_sim,
+            device: document.device,
+            camera: document.camera,
+            created_at: currentDate,
+            modified_at: currentDate,
+            suggest: {
+                input: [document.model.number, document.model.name],
+                output: document.model.name,
+                payload: document.model.number || {}
+            }
+        }
+    });
+}
+exports.addDocumentToFinalDb = addDocumentToFinalDb;
+
+function updateDocumentFinalDb(document, id) {
+    var datetime = new Date();
+    var currentDate = utills.convertDate(datetime);
+
+    return elasticClient.update({
+        index: indexName,
+        type: "mobile_final",
+        id: id,
+        body: {
+            doc: {
+                brand: document.brand,
+                model: document.model,
+                display: document.display,
+                ram: document.ram,
+                cpu: document.cpu,
+                os: document.os,
+                storage: document.storage,
+                dual_sim: document.dual_sim,
+                device: document.device,
+                camera: document.camera,
+                modified_at: currentDate
+            }
+        }
+    });
+}
+exports.updateDocumentFinalDb = updateDocumentFinalDb;
+
+function getModelNameFromMapping(document) {
+    return elasticClient.search({
+        index: indexName,
+        type: "mapping_android",
+        body: {
+            fields: ["model_name"],
+            query: {
+                "bool" :{
+                    "must" : [
+                        { "match": {"manufacturer": document.brand} },
+                        { "match": {"device": document.device} },
+                        { "match": {"model_number": document.model.number} }
+                    ]
+                }
+            }
+        }
+    });
+}
+exports.getModelNameFromMapping = getModelNameFromMapping;
